@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Наше Семейное Древо</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; }
+        
+        /* Форма */
+        .form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; background: #eef2f3; border-radius: 8px; }
+        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { cursor: pointer; background: #27ae60; color: white; border: none; transition: 0.3s; }
+        button:hover { background: #219150; }
+
+        /* Древо/Сетка */
+        .tree-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 30px; }
+        .card { width: 180px; background: white; border: 2px solid #3498db; border-radius: 10px; padding: 10px; text-align: center; position: relative; }
+        .card img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: #eee; }
+        .card h3 { margin: 10px 0 5px; font-size: 16px; }
+        .card p { font-size: 12px; color: #7f8c8d; margin: 0; }
+        .parent-info { font-size: 11px; color: #3498db; margin-top: 5px; font-style: italic; }
+        .delete-btn { position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 20px; text-align: center; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>👨‍👩‍👧‍👦 Семейное Древо</h1>
+
+    <!-- Форма добавления -->
+    <div class="form-group">
+        <input type="text" id="name" placeholder="Имя Фамилия">
+        <input type="text" id="role" placeholder="Кто он (н-р: Дедушка)">
+        <input type="file" id="photo" accept="image/*">
+        <select id="parentSelect">
+            <option value="">Без родителя (основатель)</option>
+        </select>
+        <button onclick="addPerson()" style="grid-column: span 2;">Добавить в дерево</button>
+    </div>
+
+    <div class="tree-container" id="tree">
+        <!-- Сюда будут добавляться карточки -->
+    </div>
+</div>
+
+<script>
+    let family = JSON.parse(localStorage.getItem('myFamily')) || [];
+
+    function saveAndRender() {
+        localStorage.setItem('myFamily', JSON.stringify(family));
+        renderTree();
+        updateParentSelect();
+    }
+
+    function addPerson() {
+        const name = document.getElementById('name').value;
+        const role = document.getElementById('role').value;
+        const photoInput = document.getElementById('photo');
+        const parentId = document.getElementById('parentSelect').value;
+
+        if (!name) return alert("Введите имя!");
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const newPerson = {
+                id: Date.now(),
+                name: name,
+                role: role,
+                parent: parentId,
+                photo: e.target.result || ''
+            };
+            family.push(newPerson);
+            saveAndRender();
+            
+            // Очистка формы
+            document.getElementById('name').value = '';
+            document.getElementById('role').value = '';
+            document.getElementById('photo').value = '';
+        };
+
+        if (photoInput.files[0]) {
+            reader.readAsDataURL(photoInput.files[0]);
+        } else {
+            reader.onload({ target: { result: '' } });
+        }
+    }
+
+    function deletePerson(id) {
+        family = family.filter(p => p.id !== id);
+        saveAndRender();
+    }
+
+    function updateParentSelect() {
+        const select = document.getElementById('parentSelect');
+        select.innerHTML = '<option value="">Без родителя (основатель)</option>';
+        family.forEach(p => {
+            select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+        });
+    }
+
+    function renderTree() {
+        const container = document.getElementById('tree');
+        container.innerHTML = '';
+
+        family.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="delete-btn" onclick="deletePerson(${p.id})">×</div>
+                <img src="${p.photo || 'https://placeholder.com'}" alt="photo">
+                <h3>${p.name}</h3>
+                <p>${p.role}</p>
+                ${p.parent ? `<div class="parent-info">Ребенок: ${p.parent}</div>` : ''}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Инициализация при загрузке
+    renderTree();
+    updateParentSelect();
+</script>
+
+</body>
+</html>
