@@ -49,80 +49,97 @@
       appId: "1:73033234712:web:5d9866bd7a7b0c5b3f866d"
     };
 
-    // 3. Инициализация (делаем проверку, чтобы не было ошибки "ReferenceError")
-    let db;
-    try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.database();
-        console.log("Firebase подключен успешно!");
-    } catch (e) {
-        console.error("Ошибка инициализации Firebase:", e);
-    }
-
-    // Слушаем изменения в базе
-    if (db) {
-        db.ref('family').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
-            render(familyArray);
-        });
-    }
-
-    function addMember() {
-        const name = document.getElementById('name').value;
-        const role = document.getElementById('role').value;
-        const p1 = document.getElementById('parent1').value;
-        const p2 = document.getElementById('parent2').value;
-        const photoFile = document.getElementById('photo').files[0];
-
-        if (!name) return alert("Введите хотя бы имя!");
-
-        const pushData = (imgBase64) => {
-            db.ref('family').push({
-                name: name,
-                role: role,
-                p1: p1,
-                p2: p2,
-                photo: imgBase64 || ''
+let db;
+window.onload = function() {
+    if (typeof firebase !== 'undefined') {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            console.log("Firebase успешно подключен!");
+            
+            // Начинаем слушать данные только после успешного подключения
+            db.ref('family').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
+                render(familyArray);
             });
-            document.getElementById('name').value = ''; // очистка
-        };
-
-        if (photoFile) {
-            // Если фото слишком большое, оно может не сохраниться в Realtime Database
-            const reader = new FileReader();
-            reader.onload = (e) => pushData(e.target.result);
-            reader.readAsDataURL(photoFile);
-        } else {
-            pushData('');
+        } catch (e) {
+            console.error("Ошибка при настройке Firebase:", e);
+            alert("Ошибка подключения к базе данных. Проверьте консоль.");
         }
+    } else {
+        console.error("Библиотеки Firebase не загружены! Проверьте интернет или блокировщики рекламы.");
+        alert("Не удалось загрузить модули Firebase. Попробуйте обновить страницу.");
+    }
+};
+
+function addMember() {
+    if (!db) {
+        alert("База данных еще не готова. Подождите пару секунд.");
+        return;
     }
 
-    function deleteMember(id) {
-        if(confirm("Удалить?")) db.ref('family/' + id).remove();
-    }
+    const name = document.getElementById('name').value;
+    const role = document.getElementById('role').value;
+    const p1 = document.getElementById('parent1').value;
+    const p2 = document.getElementById('parent2').value;
+    const photoFile = document.getElementById('photo').files[0];
 
-    function render(family) {
-        const display = document.getElementById('treeDisplay');
-        const s1 = document.getElementById('parent1');
-        const s2 = document.getElementById('parent2');
-        
-        display.innerHTML = '';
-        const options = family.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
-        s1.innerHTML = '<option value="">Отец</option>' + options;
-        s2.innerHTML = '<option value="">Мать</option>' + options;
+    if (!name) return alert("Введите имя!");
 
-        family.forEach(m => {
-            display.innerHTML += `
-                <div class="card">
-                    <span class="del" onclick="deleteMember('${m.id}')">×</span>
-                    <img src="${m.photo || 'https://placeholder.com'}">
-                    <h3>${m.name}</h3>
-                    <p>${m.role}</p>
-                </div>
-            `;
+    const pushToDB = (imgData) => {
+        db.ref('family').push({
+            name: name,
+            role: role,
+            p1: p1,
+            p2: p2,
+            photo: imgData || ''
+        }).then(() => {
+            document.getElementById('name').value = '';
+            console.log("Успешно добавлено!");
+        }).catch(err => {
+            console.error("Ошибка записи:", err);
+            alert("Ошибка доступа! Проверьте правила (Rules) в Firebase.");
         });
+    };
+
+    if (photoFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => pushToDB(e.target.result);
+        reader.readAsDataURL(photoFile);
+    } else {
+        pushToDB('');
     }
+}
+
+function deleteMember(id) {
+    if(confirm("Удалить родственника?") && db) {
+        db.ref('family/' + id).remove();
+    }
+}
+
+function render(family) {
+    const display = document.getElementById('treeDisplay');
+    const s1 = document.getElementById('parent1');
+    const s2 = document.getElementById('parent2');
+    
+    display.innerHTML = '';
+    const options = family.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    s1.innerHTML = '<option value="">Отец</option>' + options;
+    s2.innerHTML = '<option value="">Мать</option>' + options;
+
+    family.forEach(m => {
+        display.innerHTML += `
+            <div class="card">
+                <span class="del" onclick="deleteMember('${m.id}')">×</span>
+                <img src="${m.photo || 'https://placeholder.com'}">
+                <h3>${m.name}</h3>
+                <p>${m.role}</p>
+            </div>
+        `;
+    });
+}
+
 </script>
 
 </body>
