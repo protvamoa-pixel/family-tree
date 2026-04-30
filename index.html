@@ -2,125 +2,113 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Семейное Древо на Supabase</title>
-    <script src="https://unpkg.com"></script>
-
-    
+    <title>Семейное Древо — Прямое подключение</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        input, select, button { padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
-        button { background: #3ecf8e; color: white; border: none; font-weight: bold; cursor: pointer; }
-        button:hover { background: #36b37a; }
-        .tree-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-        .card { background: white; border: 1px solid #eee; padding: 15px; text-align: center; border-radius: 12px; position: relative; }
-        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; background: #f0f0f0; }
-        .del { position: absolute; top: 10px; right: 10px; color: #ff4d4d; cursor: pointer; font-size: 18px; }
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; background: #eee; border-radius: 8px; }
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: #3ecf8e; color: white; cursor: pointer; border: none; font-weight: bold; }
+        .tree { display: flex; flex-wrap: wrap; gap: 15px; }
+        .card { width: 180px; border: 1px solid #ddd; padding: 10px; text-align: center; background: #fff; border-radius: 8px; position: relative; }
+        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+        .del { position: absolute; top: 5px; right: 5px; cursor: pointer; color: red; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🌲 Семейное Древо (Supabase)</h1>
-    <div class="form-grid">
+    <h1>🌲 Семейное Древо</h1>
+    <div class="form">
         <input type="text" id="name" placeholder="Имя Фамилия">
         <input type="text" id="role" placeholder="Роль">
         <input type="file" id="photo" accept="image/*">
-        <select id="parent1"><option value="">Отец</option></select>
-        <select id="parent2"><option value="">Мать</option></select>
+        <select id="p1"><option value="">Отец</option></select>
+        <select id="p2"><option value="">Мать</option></select>
         <button onclick="addMember()">Добавить</button>
     </div>
-    <div id="treeDisplay" class="tree-grid"></div>
+    <div class="tree" id="display"></div>
 </div>
 
 <script>
     const SUPABASE_URL = 'https://xllgydydyjakmiauefuw.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbGd5ZHlkeWpha21pYXVlZnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mzc0ODAsImV4cCI6MjA5MzExMzQ4MH0.gpjxke6u7lztzCPsaVgvAZOOLwjvkBYCE6t5vjXkHy8';
-    let _supabase;
 
-function initSupabase() {
-    if (typeof supabase !== 'undefined') {
-        _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase готов!");
-        loadFamily();
-    } else {
-        alert("Ошибка: Библиотека Supabase не загрузилась. Попробуйте отключить VPN или сменить браузер.");
-    }
-}
-
-// Ждем загрузки страницы
-window.onload = initSupabase;
-
-async function loadFamily() {
-    if (!_supabase) return;
-    const { data, error } = await _supabase.from('family').select('*').order('created_at');
-    if (error) console.error("Ошибка загрузки:", error.message);
-    else render(data);
-}
-
-async function addMember() {
-    if (!_supabase) return alert("Система не готова");
-
-    const name = document.getElementById('name').value;
-    const role = document.getElementById('role').value;
-    const p1 = document.getElementById('parent1').value;
-    const p2 = document.getElementById('parent2').value;
-    const fileInput = document.getElementById('photo');
-
-    if (!name) return alert("Введите имя!");
-
-    if (fileInput.files.length > 0) {
-        const reader = new FileReader();
-        reader.readAsDataURL(fileInput.files[0]);
-        reader.onload = async () => {
-            await sendToSupabase(name, role, p1, p2, reader.result);
+    // Функция для запросов к Supabase без библиотек
+    async function api(method, body = null, id = '') {
+        const options = {
+            method: method,
+            headers: {
+                'apikey': KEY,
+                'Authorization': `Bearer ${KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            }
         };
-    } else {
-        await sendToSupabase(name, role, p1, p2, '');
+        if (body) options.body = JSON.stringify(body);
+        
+        const res = await fetch(`${URL}/rest/v1/family${id ? '?id=eq.'+id : ''}`, options);
+        return res.json();
     }
-}
 
-async function sendToSupabase(name, role, p1, p2, photo) {
-    const { error } = await _supabase.from('family').insert([{ name, role, p1, p2, photo }]);
-    if (error) {
-        console.error("Ошибка вставки:", error);
-        alert("Ошибка: " + error.message + ". Проверьте Policies в Supabase!");
-    } else {
-        document.getElementById('name').value = '';
-        loadFamily();
+    async function load() {
+        const data = await api('GET');
+        render(data);
     }
-}
 
-async function deleteMember(id) {
-    if (!confirm("Удалить?")) return;
-    await _supabase.from('family').delete().eq('id', id);
-    loadFamily();
-}
+    async function addMember() {
+        const name = document.getElementById('name').value;
+        const role = document.getElementById('role').value;
+        const parent1 = document.getElementById('p1').value;
+        const parent2 = document.getElementById('p2').value;
+        const file = document.getElementById('photo').files[0];
 
-function render(family) {
-    const display = document.getElementById('treeDisplay');
-    const s1 = document.getElementById('parent1');
-    const s2 = document.getElementById('parent2');
-    
-    display.innerHTML = '';
-    const options = family.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
-    s1.innerHTML = '<option value="">Отец</option>' + options;
-    s2.innerHTML = '<option value="">Мать</option>' + options;
+        if (!name) return alert("Введите имя");
 
-    family.forEach(m => {
-        display.innerHTML += `
-            <div class="card">
-                <span class="del" onclick="deleteMember('${m.id}')">&times;</span>
-                <img src="${m.photo || 'https://placeholder.com'}">
-                <h3>${m.name}</h3>
-                <p>${m.role}</p>
-            </div>
-        `;
-    });
-}
+        let photoData = '';
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                await api('POST', { name, role, p1: parent1, p2: parent2, photo: reader.result });
+                location.reload();
+            };
+        } else {
+            await api('POST', { name, role, p1: parent1, p2: parent2, photo: '' });
+            location.reload();
+        }
+    }
 
+    async function remove(id) {
+        if (confirm("Удалить?")) {
+            await api('DELETE', null, id);
+            load();
+        }
+    }
+
+    function render(family) {
+        const container = document.getElementById('display');
+        const s1 = document.getElementById('p1');
+        const s2 = document.getElementById('p2');
+        
+        container.innerHTML = '';
+        const opts = family.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+        s1.innerHTML = '<option value="">Отец</option>' + opts;
+        s2.innerHTML = '<option value="">Мать</option>' + opts;
+
+        family.forEach(m => {
+            container.innerHTML += `
+                <div class="card">
+                    <span class="del" onclick="remove('${m.id}')">×</span>
+                    <img src="${m.photo || 'https://placeholder.com'}">
+                    <h3>${m.name}</h3>
+                    <p>${m.role}</p>
+                </div>
+            `;
+        });
+    }
+
+    load();
 </script>
 </body>
 </html>
-
