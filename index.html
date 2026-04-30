@@ -2,146 +2,113 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Семейное Древо Online</title>
+    <title>Семейное Древо на Supabase</title>
+    <!-- Подключаем Supabase -->
+    <script src="https://jsdelivr.net"></script>
     
-<!-- Попробуйте заменить старые скрипты на эти альтернативные -->
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
-
-
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; background: #eee; border-radius: 8px; }
-        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        button { background: #27ae60; color: white; cursor: pointer; border: none; }
-        .tree-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
-        .card { width: 180px; border: 1px solid #ddd; padding: 10px; text-align: center; background: #fff; border-radius: 8px; position: relative; }
-        .card img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; }
-        .del { position: absolute; top: 5px; right: 5px; cursor: pointer; color: #e74c3c; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        input, select, button { padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
+        button { background: #3ecf8e; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #36b37a; }
+        .tree-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .card { background: white; border: 1px solid #eee; padding: 15px; text-align: center; border-radius: 12px; position: relative; }
+        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; background: #f0f0f0; }
+        .del { position: absolute; top: 10px; right: 10px; color: #ff4d4d; cursor: pointer; font-size: 18px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>👨‍👩‍👧‍👦 Семейное Древо (Live)</h1>
-    
+    <h1>🌲 Семейное Древо (Supabase)</h1>
     <div class="form-grid">
         <input type="text" id="name" placeholder="Имя Фамилия">
-        <input type="text" id="role" placeholder="Роль (Сын, Мама...)">
+        <input type="text" id="role" placeholder="Роль">
         <input type="file" id="photo" accept="image/*">
         <select id="parent1"><option value="">Отец</option></select>
         <select id="parent2"><option value="">Мать</option></select>
-        <button onclick="addMember()">Добавить для всех</button>
+        <button onclick="addMember()">Добавить</button>
     </div>
-
-    <div class="tree-grid" id="treeDisplay"></div>
+    <div id="treeDisplay" class="tree-grid"></div>
 </div>
 
 <script>
-    // 2. Ваши настройки (ЗАМЕНИТЕ НА СВОИ)
-    const firebaseConfig = {
-      apiKey: "AIzaSyCcF9h3nRYe-O9cliwcysEMoTS71XWzaqI",
-      authDomain: "family-tree-6f627.firebaseapp.com",
-      databaseURL: "https://family-tree-6f627-default-rtdb.firebaseio.com",
-      projectId: "family-tree-6f627",
-      storageBucket: "family-tree-6f627.firebasestorage.app",
-      messagingSenderId: "73033234712",
-      appId: "1:73033234712:web:5d9866bd7a7b0c5b3f866d"
-    };
+    // ВСТАВЬТЕ ВАШИ ДАННЫЕ ИЗ SUPABASE SETTINGS -> API
+    const SUPABASE_URL = 'https://xllgydydyjakmiauefuw.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbGd5ZHlkeWpha21pYXVlZnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mzc0ODAsImV4cCI6MjA5MzExMzQ4MH0.gpjxke6u7lztzCPsaVgvAZOOLwjvkBYCE6t5vjXkHy8';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let db;
-window.onload = function() {
-    if (typeof firebase !== 'undefined') {
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
-            console.log("Firebase успешно подключен!");
-            
-            // Начинаем слушать данные только после успешного подключения
-            db.ref('family').on('value', (snapshot) => {
-                const data = snapshot.val();
-                const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
-                render(familyArray);
-            });
-        } catch (e) {
-            console.error("Ошибка при настройке Firebase:", e);
-            alert("Ошибка подключения к базе данных. Проверьте консоль.");
+    // Загрузка данных
+    async function loadFamily() {
+        const { data, error } = await _supabase.from('family').select('*').order('created_at');
+        if (error) console.error(error);
+        else render(data);
+    }
+
+    // Добавление участника
+    async function addMember() {
+        const name = document.getElementById('name').value;
+        const role = document.getElementById('role').value;
+        const p1 = document.getElementById('parent1').value;
+        const p2 = document.getElementById('parent2').value;
+        const file = document.getElementById('photo').files[0];
+
+        if (!name) return alert("Введите имя!");
+
+        let photoBase64 = '';
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                photoBase64 = reader.result;
+                await sendToSupabase(name, role, p1, p2, photoBase64);
+            };
+        } else {
+            await sendToSupabase(name, role, p1, p2, '');
         }
-    } else {
-        console.error("Библиотеки Firebase не загружены! Проверьте интернет или блокировщики рекламы.");
-        alert("Не удалось загрузить модули Firebase. Попробуйте обновить страницу.");
-    }
-};
-
-function addMember() {
-    if (!db) {
-        alert("База данных еще не готова. Подождите пару секунд.");
-        return;
     }
 
-    const name = document.getElementById('name').value;
-    const role = document.getElementById('role').value;
-    const p1 = document.getElementById('parent1').value;
-    const p2 = document.getElementById('parent2').value;
-    const photoFile = document.getElementById('photo').files[0];
-
-    if (!name) return alert("Введите имя!");
-
-    const pushToDB = (imgData) => {
-        db.ref('family').push({
-            name: name,
-            role: role,
-            p1: p1,
-            p2: p2,
-            photo: imgData || ''
-        }).then(() => {
+    async function sendToSupabase(name, role, p1, p2, photo) {
+        const { error } = await _supabase.from('family').insert([{ name, role, p1, p2, photo }]);
+        if (error) alert("Ошибка: " + error.message);
+        else {
             document.getElementById('name').value = '';
-            console.log("Успешно добавлено!");
-        }).catch(err => {
-            console.error("Ошибка записи:", err);
-            alert("Ошибка доступа! Проверьте правила (Rules) в Firebase.");
+            loadFamily();
+        }
+    }
+
+    async function deleteMember(id) {
+        if (!confirm("Удалить?")) return;
+        await _supabase.from('family').delete().eq('id', id);
+        loadFamily();
+    }
+
+    function render(family) {
+        const display = document.getElementById('treeDisplay');
+        const s1 = document.getElementById('parent1');
+        const s2 = document.getElementById('parent2');
+        
+        display.innerHTML = '';
+        const options = family.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+        s1.innerHTML = '<option value="">Отец</option>' + options;
+        s2.innerHTML = '<option value="">Мать</option>' + options;
+
+        family.forEach(m => {
+            display.innerHTML += `
+                <div class="card">
+                    <span class="del" onclick="deleteMember('${m.id}')">&times;</span>
+                    <img src="${m.photo || 'https://placeholder.com'}">
+                    <h3>${m.name}</h3>
+                    <p>${m.role}</p>
+                </div>
+            `;
         });
-    };
-
-    if (photoFile) {
-        const reader = new FileReader();
-        reader.onload = (e) => pushToDB(e.target.result);
-        reader.readAsDataURL(photoFile);
-    } else {
-        pushToDB('');
     }
-}
 
-function deleteMember(id) {
-    if(confirm("Удалить родственника?") && db) {
-        db.ref('family/' + id).remove();
-    }
-}
-
-function render(family) {
-    const display = document.getElementById('treeDisplay');
-    const s1 = document.getElementById('parent1');
-    const s2 = document.getElementById('parent2');
-    
-    display.innerHTML = '';
-    const options = family.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
-    s1.innerHTML = '<option value="">Отец</option>' + options;
-    s2.innerHTML = '<option value="">Мать</option>' + options;
-
-    family.forEach(m => {
-        display.innerHTML += `
-            <div class="card">
-                <span class="del" onclick="deleteMember('${m.id}')">×</span>
-                <img src="${m.photo || 'https://placeholder.com'}">
-                <h3>${m.name}</h3>
-                <p>${m.role}</p>
-            </div>
-        `;
-    });
-}
-
+    loadFamily();
 </script>
-
 </body>
 </html>
+
