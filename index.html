@@ -31,29 +31,42 @@
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://xllgydydyjakmiauefuw.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbGd5ZHlkeWpha21pYXVlZnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mzc0ODAsImV4cCI6MjA5MzExMzQ4MH0.gpjxke6u7lztzCPsaVgvAZOOLwjvkBYCE6t5vjXkHy8';
+    // ПРОВЕРЬТЕ, ЧТО ЗДЕСЬ СТОЯТ ВАШИ ДАННЫЕ В КАВЫЧКАХ
+    const URL = 'https://xllgydydyjakmiauefuw.supabase.co'; 
+    const KEY = 'sb_publishable_lonYXmmUpIVWLsRuSpVMUA_h9m3H44I';
 
-    // Функция для запросов к Supabase без библиотек
+    // Функция для работы с базой (теперь KEY точно будет виден)
     async function api(method, body = null, id = '') {
-        const options = {
-            method: method,
-            headers: {
-                'apikey': KEY,
-                'Authorization': `Bearer ${KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation'
+        try {
+            const options = {
+                method: method,
+                headers: {
+                    'apikey': KEY,
+                    'Authorization': 'Bearer ' + KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            const response = await fetch(`${URL}/rest/v1/family${id ? '?id=eq.' + id : ''}`, options);
+            
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(errText);
             }
-        };
-        if (body) options.body = JSON.stringify(body);
-        
-        const res = await fetch(`${URL}/rest/v1/family${id ? '?id=eq.'+id : ''}`, options);
-        return res.json();
+            
+            return await response.json();
+        } catch (err) {
+            console.error("Ошибка API:", err.message);
+            if (err.message.includes('JWT')) alert("Ошибка ключа (KEY). Проверьте, правильно ли вы его скопировали.");
+        }
     }
 
     async function load() {
+        if (!URL || URL.includes('ВАШ_')) return;
         const data = await api('GET');
-        render(data);
+        if (data) render(data);
     }
 
     async function addMember() {
@@ -61,21 +74,30 @@
         const role = document.getElementById('role').value;
         const parent1 = document.getElementById('p1').value;
         const parent2 = document.getElementById('p2').value;
-        const file = document.getElementById('photo').files[0];
+        const fileInput = document.getElementById('photo');
 
         if (!name) return alert("Введите имя");
 
-        let photoData = '';
-        if (file) {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                await api('POST', { name, role, p1: parent1, p2: parent2, photo: reader.result });
+        const saveData = async (base64Photo) => {
+            const result = await api('POST', { 
+                name: name, 
+                role: role, 
+                p1: parent1, 
+                p2: parent2, 
+                photo: base64Photo 
+            });
+            if (result) {
+                alert("Добавлено!");
                 location.reload();
-            };
+            }
+        };
+
+        if (fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = () => saveData(reader.result);
+            reader.readAsDataURL(fileInput.files[0]);
         } else {
-            await api('POST', { name, role, p1: parent1, p2: parent2, photo: '' });
-            location.reload();
+            await saveData('');
         }
     }
 
@@ -108,6 +130,7 @@
         });
     }
 
+    // Запуск при загрузке
     load();
 </script>
 </body>
