@@ -3,125 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Наше Семейное Древо</title>
+    <title>Семейное Древо с Родством</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #2c3e50; }
+        body { font-family: 'Arial', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #ddd; }
+        input, select, button { padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
         
-        /* Форма */
-        .form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; background: #eef2f3; border-radius: 8px; }
-        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
-        button { cursor: pointer; background: #27ae60; color: white; border: none; transition: 0.3s; }
-        button:hover { background: #219150; }
-
-        /* Древо/Сетка */
-        .tree-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 30px; }
-        .card { width: 180px; background: white; border: 2px solid #3498db; border-radius: 10px; padding: 10px; text-align: center; position: relative; }
-        .card img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: #eee; }
-        .card h3 { margin: 10px 0 5px; font-size: 16px; }
-        .card p { font-size: 12px; color: #7f8c8d; margin: 0; }
-        .parent-info { font-size: 11px; color: #3498db; margin-top: 5px; font-style: italic; }
-        .delete-btn { position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 20px; text-align: center; cursor: pointer; }
+        .tree-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; text-align: center; position: relative; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 3px solid #007bff; }
+        .card h3 { margin: 5px 0; font-size: 18px; }
+        .info { font-size: 13px; color: #666; margin-bottom: 5px; }
+        .relatives { font-size: 11px; background: #e7f3ff; color: #007bff; padding: 5px; border-radius: 4px; margin-top: 8px; }
+        .del { position: absolute; top: 8px; right: 8px; color: #ccc; cursor: pointer; font-weight: bold; }
+        .del:hover { color: #ff4d4d; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>👨‍👩‍👧‍👦 Семейное Древо</h1>
+    <h1>👨‍👩‍👧‍👦 Расширенное Семейное Древо</h1>
 
-    <!-- Форма добавления -->
-    <div class="form-group">
+    <div class="form-grid">
         <input type="text" id="name" placeholder="Имя Фамилия">
-        <input type="text" id="role" placeholder="Кто он (н-р: Дедушка)">
+        <input type="text" id="role" placeholder="Роль (н-р: Сын)">
         <input type="file" id="photo" accept="image/*">
-        <select id="parentSelect">
-            <option value="">Без родителя (основатель)</option>
+        
+        <select id="parent1">
+            <option value="">Отец (выбрать)</option>
         </select>
-        <button onclick="addPerson()" style="grid-column: span 2;">Добавить в дерево</button>
+        
+        <select id="parent2">
+            <option value="">Мать (выбрать)</option>
+        </select>
+        
+        <button onclick="addMember()">Добавить родственника</button>
     </div>
 
-    <div class="tree-container" id="tree">
-        <!-- Сюда будут добавляться карточки -->
-    </div>
+    <div class="tree-grid" id="treeDisplay"></div>
 </div>
 
 <script>
-    let family = JSON.parse(localStorage.getItem('myFamily')) || [];
+    let family = JSON.parse(localStorage.getItem('familyData')) || [];
 
-    function saveAndRender() {
-        localStorage.setItem('myFamily', JSON.stringify(family));
-        renderTree();
-        updateParentSelect();
+    function save() {
+        localStorage.setItem('familyData', JSON.stringify(family));
+        render();
     }
 
-    function addPerson() {
+    function addMember() {
         const name = document.getElementById('name').value;
         const role = document.getElementById('role').value;
-        const photoInput = document.getElementById('photo');
-        const parentId = document.getElementById('parentSelect').value;
+        const p1 = document.getElementById('parent1').value;
+        const p2 = document.getElementById('parent2').value;
+        const file = document.getElementById('photo').files[0];
 
         if (!name) return alert("Введите имя!");
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const newPerson = {
-                id: Date.now(),
-                name: name,
-                role: role,
-                parent: parentId,
-                photo: e.target.result || ''
-            };
-            family.push(newPerson);
-            saveAndRender();
-            
-            // Очистка формы
+        const process = (imgData) => {
+            family.push({
+                id: Date.now().toString(),
+                name, role, p1, p2,
+                photo: imgData || 'https://placeholder.com'
+            });
+            save();
             document.getElementById('name').value = '';
-            document.getElementById('role').value = '';
-            document.getElementById('photo').value = '';
         };
 
-        if (photoInput.files[0]) {
-            reader.readAsDataURL(photoInput.files[0]);
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => process(e.target.result);
+            reader.readAsDataURL(file);
         } else {
-            reader.onload({ target: { result: '' } });
+            process();
         }
     }
 
-    function deletePerson(id) {
-        family = family.filter(p => p.id !== id);
-        saveAndRender();
+    function deleteMember(id) {
+        family = family.filter(m => m.id !== id);
+        save();
     }
 
-    function updateParentSelect() {
-        const select = document.getElementById('parentSelect');
-        select.innerHTML = '<option value="">Без родителя (основатель)</option>';
-        family.forEach(p => {
-            select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
-        });
+    function getSiblings(person) {
+        if (!person.p1 && !person.p2) return "";
+        const siblings = family.filter(m => 
+            m.id !== person.id && 
+            m.p1 === person.p1 && 
+            m.p2 === person.p2 &&
+            (person.p1 !== "" || person.p2 !== "")
+        );
+        return siblings.length > 0 ? "Сиблинги: " + siblings.map(s => s.name).join(", ") : "";
     }
 
-    function renderTree() {
-        const container = document.getElementById('tree');
-        container.innerHTML = '';
+    function render() {
+        const display = document.getElementById('treeDisplay');
+        const s1 = document.getElementById('parent1');
+        const s2 = document.getElementById('parent2');
+        
+        display.innerHTML = '';
+        s1.innerHTML = '<option value="">Отец (нет)</option>';
+        s2.innerHTML = '<option value="">Мать (нет)</option>';
 
-        family.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="delete-btn" onclick="deletePerson(${p.id})">×</div>
-                <img src="${p.photo || 'https://placeholder.com'}" alt="photo">
-                <h3>${p.name}</h3>
-                <p>${p.role}</p>
-                ${p.parent ? `<div class="parent-info">Ребенок: ${p.parent}</div>` : ''}
+        family.forEach(m => {
+            // Добавляем в выпадающие списки
+            const opt = `<option value="${m.id}">${m.name}</option>`;
+            s1.innerHTML += opt;
+            s2.innerHTML += opt;
+
+            // Определяем братьев/сестер
+            const sibs = getSiblings(m);
+            const parentNames = [
+                family.find(f => f.id === m.p1)?.name,
+                family.find(f => f.id === m.p2)?.name
+            ].filter(Boolean).join(" и ");
+
+            // Создаем карточку
+            display.innerHTML += `
+                <div class="card">
+                    <span class="del" onclick="deleteMember('${m.id}')">×</span>
+                    <img src="${m.photo}">
+                    <h3>${m.name}</h3>
+                    <div class="info"><b>${m.role}</b></div>
+                    ${parentNames ? `<div class="info" style="font-size:11px">Родители: ${parentNames}</div>` : ''}
+                    ${sibs ? `<div class="relatives">${sibs}</div>` : ''}
+                </div>
             `;
-            container.appendChild(card);
         });
     }
 
-    // Инициализация при загрузке
-    renderTree();
-    updateParentSelect();
+    render();
 </script>
 
 </body>
