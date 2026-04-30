@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Семейное Древо на Supabase</title>
-    <!-- Подключаем Supabase -->
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com"></script>
+
     
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
@@ -35,79 +35,91 @@
 </div>
 
 <script>
-    // ВСТАВЬТЕ ВАШИ ДАННЫЕ ИЗ SUPABASE SETTINGS -> API
     const SUPABASE_URL = 'https://xllgydydyjakmiauefuw.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbGd5ZHlkeWpha21pYXVlZnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mzc0ODAsImV4cCI6MjA5MzExMzQ4MH0.gpjxke6u7lztzCPsaVgvAZOOLwjvkBYCE6t5vjXkHy8';
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let _supabase;
 
-    // Загрузка данных
-    async function loadFamily() {
-        const { data, error } = await _supabase.from('family').select('*').order('created_at');
-        if (error) console.error(error);
-        else render(data);
+function initSupabase() {
+    if (typeof supabase !== 'undefined') {
+        _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("Supabase готов!");
+        loadFamily();
+    } else {
+        alert("Ошибка: Библиотека Supabase не загрузилась. Попробуйте отключить VPN или сменить браузер.");
     }
+}
 
-    // Добавление участника
-    async function addMember() {
-        const name = document.getElementById('name').value;
-        const role = document.getElementById('role').value;
-        const p1 = document.getElementById('parent1').value;
-        const p2 = document.getElementById('parent2').value;
-        const file = document.getElementById('photo').files[0];
+// Ждем загрузки страницы
+window.onload = initSupabase;
 
-        if (!name) return alert("Введите имя!");
+async function loadFamily() {
+    if (!_supabase) return;
+    const { data, error } = await _supabase.from('family').select('*').order('created_at');
+    if (error) console.error("Ошибка загрузки:", error.message);
+    else render(data);
+}
 
-        let photoBase64 = '';
-        if (file) {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                photoBase64 = reader.result;
-                await sendToSupabase(name, role, p1, p2, photoBase64);
-            };
-        } else {
-            await sendToSupabase(name, role, p1, p2, '');
-        }
+async function addMember() {
+    if (!_supabase) return alert("Система не готова");
+
+    const name = document.getElementById('name').value;
+    const role = document.getElementById('role').value;
+    const p1 = document.getElementById('parent1').value;
+    const p2 = document.getElementById('parent2').value;
+    const fileInput = document.getElementById('photo');
+
+    if (!name) return alert("Введите имя!");
+
+    if (fileInput.files.length > 0) {
+        const reader = new FileReader();
+        reader.readAsDataURL(fileInput.files[0]);
+        reader.onload = async () => {
+            await sendToSupabase(name, role, p1, p2, reader.result);
+        };
+    } else {
+        await sendToSupabase(name, role, p1, p2, '');
     }
+}
 
-    async function sendToSupabase(name, role, p1, p2, photo) {
-        const { error } = await _supabase.from('family').insert([{ name, role, p1, p2, photo }]);
-        if (error) alert("Ошибка: " + error.message);
-        else {
-            document.getElementById('name').value = '';
-            loadFamily();
-        }
-    }
-
-    async function deleteMember(id) {
-        if (!confirm("Удалить?")) return;
-        await _supabase.from('family').delete().eq('id', id);
+async function sendToSupabase(name, role, p1, p2, photo) {
+    const { error } = await _supabase.from('family').insert([{ name, role, p1, p2, photo }]);
+    if (error) {
+        console.error("Ошибка вставки:", error);
+        alert("Ошибка: " + error.message + ". Проверьте Policies в Supabase!");
+    } else {
+        document.getElementById('name').value = '';
         loadFamily();
     }
+}
 
-    function render(family) {
-        const display = document.getElementById('treeDisplay');
-        const s1 = document.getElementById('parent1');
-        const s2 = document.getElementById('parent2');
-        
-        display.innerHTML = '';
-        const options = family.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
-        s1.innerHTML = '<option value="">Отец</option>' + options;
-        s2.innerHTML = '<option value="">Мать</option>' + options;
-
-        family.forEach(m => {
-            display.innerHTML += `
-                <div class="card">
-                    <span class="del" onclick="deleteMember('${m.id}')">&times;</span>
-                    <img src="${m.photo || 'https://placeholder.com'}">
-                    <h3>${m.name}</h3>
-                    <p>${m.role}</p>
-                </div>
-            `;
-        });
-    }
-
+async function deleteMember(id) {
+    if (!confirm("Удалить?")) return;
+    await _supabase.from('family').delete().eq('id', id);
     loadFamily();
+}
+
+function render(family) {
+    const display = document.getElementById('treeDisplay');
+    const s1 = document.getElementById('parent1');
+    const s2 = document.getElementById('parent2');
+    
+    display.innerHTML = '';
+    const options = family.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+    s1.innerHTML = '<option value="">Отец</option>' + options;
+    s2.innerHTML = '<option value="">Мать</option>' + options;
+
+    family.forEach(m => {
+        display.innerHTML += `
+            <div class="card">
+                <span class="del" onclick="deleteMember('${m.id}')">&times;</span>
+                <img src="${m.photo || 'https://placeholder.com'}">
+                <h3>${m.name}</h3>
+                <p>${m.role}</p>
+            </div>
+        `;
+    });
+}
+
 </script>
 </body>
 </html>
