@@ -2,58 +2,58 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Семейное Древо с Родством</title>
+    <title>Общее Семейное Древо</title>
+    <!-- Подключаем Firebase -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+    
     <style>
-        body { font-family: 'Arial', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #ddd; }
-        input, select, button { padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        
-        .tree-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
-        .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; text-align: center; position: relative; transition: transform 0.2s; }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 3px solid #007bff; }
-        .card h3 { margin: 5px 0; font-size: 18px; }
-        .info { font-size: 13px; color: #666; margin-bottom: 5px; }
-        .relatives { font-size: 11px; background: #e7f3ff; color: #007bff; padding: 5px; border-radius: 4px; margin-top: 8px; }
-        .del { position: absolute; top: 8px; right: 8px; color: #ccc; cursor: pointer; font-weight: bold; }
-        .del:hover { color: #ff4d4d; }
+        /* (Стили оставляем те же, что были в предыдущем ответе) */
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 8px; }
+        .tree-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+        .card { width: 200px; border: 1px solid #ddd; padding: 10px; text-align: center; background: #fff; border-radius: 8px; position: relative; }
+        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+        button { background: #28a745; color: white; border: none; padding: 10px; cursor: pointer; }
+        .del { position: absolute; top: 5px; right: 5px; cursor: pointer; color: red; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>👨‍👩‍👧‍👦 Расширенное Семейное Древо</h1>
-
+    <h1>🌍 Общее Семейное Древо</h1>
     <div class="form-grid">
         <input type="text" id="name" placeholder="Имя Фамилия">
-        <input type="text" id="role" placeholder="Роль (н-р: Сын)">
+        <input type="text" id="role" placeholder="Роль">
         <input type="file" id="photo" accept="image/*">
-        
-        <select id="parent1">
-            <option value="">Отец (выбрать)</option>
-        </select>
-        
-        <select id="parent2">
-            <option value="">Мать (выбрать)</option>
-        </select>
-        
-        <button onclick="addMember()">Добавить родственника</button>
+        <select id="parent1"><option value="">Отец</option></select>
+        <select id="parent2"><option value="">Мать</option></select>
+        <button onclick="addMember()">Добавить для всех</button>
     </div>
-
     <div class="tree-grid" id="treeDisplay"></div>
 </div>
 
 <script>
-    let family = JSON.parse(localStorage.getItem('familyData')) || [];
+    // КОНФИГУРАЦИЯ FIREBASE (Вставь свои данные здесь!)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCcF9h3nRYe-O9cliwcysEMoTS71XWzaqI",
+        authDomain: "family-tree-6f627.firebaseapp.com",
+        databaseURL: "https://family-tree-6f627-default-rtdb.firebaseio.com",
+        projectId: "family-tree-6f627",
+        storageBucket: "family-tree-6f627.firebasestorage.app",
+    };
 
-    function save() {
-        localStorage.setItem('familyData', JSON.stringify(family));
-        render();
-    }
+    // Инициализация
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Загрузка данных в реальном времени
+    db.ref('family').on('value', (snapshot) => {
+        const data = snapshot.val();
+        const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
+        render(familyArray);
+    });
 
     function addMember() {
         const name = document.getElementById('name').value;
@@ -62,81 +62,49 @@
         const p2 = document.getElementById('parent2').value;
         const file = document.getElementById('photo').files[0];
 
-        if (!name) return alert("Введите имя!");
-
-        const process = (imgData) => {
-            family.push({
-                id: Date.now().toString(),
-                name, role, p1, p2,
-                photo: imgData || 'https://placeholder.com'
-            });
-            save();
-            document.getElementById('name').value = '';
-        };
+        if (!name) return alert("Имя обязательно!");
 
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => process(e.target.result);
+            reader.onload = (e) => {
+                db.ref('family').push({ name, role, p1, p2, photo: e.target.result });
+            };
             reader.readAsDataURL(file);
         } else {
-            process();
+            db.ref('family').push({ name, role, p1, p2, photo: '' });
         }
     }
 
     function deleteMember(id) {
-        family = family.filter(m => m.id !== id);
-        save();
+        if(confirm("Удалить родственника?")) {
+            db.ref('family/' + id).remove();
+        }
     }
 
-    function getSiblings(person) {
-        if (!person.p1 && !person.p2) return "";
-        const siblings = family.filter(m => 
-            m.id !== person.id && 
-            m.p1 === person.p1 && 
-            m.p2 === person.p2 &&
-            (person.p1 !== "" || person.p2 !== "")
-        );
-        return siblings.length > 0 ? "Сиблинги: " + siblings.map(s => s.name).join(", ") : "";
-    }
-
-    function render() {
+    function render(family) {
         const display = document.getElementById('treeDisplay');
         const s1 = document.getElementById('parent1');
         const s2 = document.getElementById('parent2');
         
         display.innerHTML = '';
-        s1.innerHTML = '<option value="">Отец (нет)</option>';
-        s2.innerHTML = '<option value="">Мать (нет)</option>';
+        s1.innerHTML = '<option value="">Отец</option>';
+        s2.innerHTML = '<option value="">Мать</option>';
 
         family.forEach(m => {
-            // Добавляем в выпадающие списки
-            const opt = `<option value="${m.id}">${m.name}</option>`;
-            s1.innerHTML += opt;
-            s2.innerHTML += opt;
+            s1.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            s2.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 
-            // Определяем братьев/сестер
-            const sibs = getSiblings(m);
-            const parentNames = [
-                family.find(f => f.id === m.p1)?.name,
-                family.find(f => f.id === m.p2)?.name
-            ].filter(Boolean).join(" и ");
-
-            // Создаем карточку
             display.innerHTML += `
                 <div class="card">
                     <span class="del" onclick="deleteMember('${m.id}')">×</span>
-                    <img src="${m.photo}">
+                    <img src="${m.photo || 'https://placeholder.com'}">
                     <h3>${m.name}</h3>
-                    <div class="info"><b>${m.role}</b></div>
-                    ${parentNames ? `<div class="info" style="font-size:11px">Родители: ${parentNames}</div>` : ''}
-                    ${sibs ? `<div class="relatives">${sibs}</div>` : ''}
+                    <p>${m.role}</p>
                 </div>
             `;
         });
     }
-
-    render();
 </script>
-
 </body>
 </html>
+
