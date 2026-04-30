@@ -1,84 +1,115 @@
+
+    // КОНФИГУРАЦИЯ FIREBASE (Вставь свои данные здесь!)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCcF9h3nRYe-O9cliwcysEMoTS71XWzaqI",
+        authDomain: "family-tree-6f627.firebaseapp.com",
+        databaseURL: "",
+        projectId: "",
+        storageBucket: ,
+    };
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Общее Семейное Древо</title>
-    <!-- Подключаем Firebase -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+    <title>Семейное Древо Online</title>
     
+    <!-- 1. Сначала загружаем сами библиотеки (ПОРЯДОК ВАЖЕН) -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+
     <style>
-        /* (Стили оставляем те же, что были в предыдущем ответе) */
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 8px; }
-        .tree-grid { display: flex; flex-wrap: wrap; gap: 20px; }
-        .card { width: 200px; border: 1px solid #ddd; padding: 10px; text-align: center; background: #fff; border-radius: 8px; position: relative; }
-        .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
-        button { background: #28a745; color: white; border: none; padding: 10px; cursor: pointer; }
-        .del { position: absolute; top: 5px; right: 5px; cursor: pointer; color: red; }
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; background: #eee; border-radius: 8px; }
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: #27ae60; color: white; cursor: pointer; border: none; }
+        .tree-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
+        .card { width: 180px; border: 1px solid #ddd; padding: 10px; text-align: center; background: #fff; border-radius: 8px; position: relative; }
+        .card img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; }
+        .del { position: absolute; top: 5px; right: 5px; cursor: pointer; color: #e74c3c; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🌍 Общее Семейное Древо</h1>
+    <h1>👨‍👩‍👧‍👦 Семейное Древо (Live)</h1>
+    
     <div class="form-grid">
         <input type="text" id="name" placeholder="Имя Фамилия">
-        <input type="text" id="role" placeholder="Роль">
+        <input type="text" id="role" placeholder="Роль (Сын, Мама...)">
         <input type="file" id="photo" accept="image/*">
         <select id="parent1"><option value="">Отец</option></select>
         <select id="parent2"><option value="">Мать</option></select>
         <button onclick="addMember()">Добавить для всех</button>
     </div>
+
     <div class="tree-grid" id="treeDisplay"></div>
 </div>
 
 <script>
-    // КОНФИГУРАЦИЯ FIREBASE (Вставь свои данные здесь!)
+    // 2. Ваши настройки (ЗАМЕНИТЕ НА СВОИ)
     const firebaseConfig = {
-        apiKey: "AIzaSyCcF9h3nRYe-O9cliwcysEMoTS71XWzaqI",
-        authDomain: "family-tree-6f627.firebaseapp.com",
-        databaseURL: "https://family-tree-6f627-default-rtdb.firebaseio.com",
-        projectId: "family-tree-6f627",
-        storageBucket: "family-tree-6f627.firebasestorage.app",
+      apiKey: "AIzaSyCcF9h3nRYe-O9cliwcysEMoTS71XWzaqI",
+      authDomain: "family-tree-6f627.firebaseapp.com",
+      databaseURL: "https://family-tree-6f627-default-rtdb.firebaseio.com",
+      projectId: "family-tree-6f627",
+      storageBucket: "family-tree-6f627.firebasestorage.app",
+      messagingSenderId: "73033234712",
+      appId: "1:73033234712:web:5d9866bd7a7b0c5b3f866d"
     };
 
-    // Инициализация
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // 3. Инициализация (делаем проверку, чтобы не было ошибки "ReferenceError")
+    let db;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        console.log("Firebase подключен успешно!");
+    } catch (e) {
+        console.error("Ошибка инициализации Firebase:", e);
+    }
 
-    // Загрузка данных в реальном времени
-    db.ref('family').on('value', (snapshot) => {
-        const data = snapshot.val();
-        const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
-        render(familyArray);
-    });
+    // Слушаем изменения в базе
+    if (db) {
+        db.ref('family').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const familyArray = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
+            render(familyArray);
+        });
+    }
 
     function addMember() {
         const name = document.getElementById('name').value;
         const role = document.getElementById('role').value;
         const p1 = document.getElementById('parent1').value;
         const p2 = document.getElementById('parent2').value;
-        const file = document.getElementById('photo').files[0];
+        const photoFile = document.getElementById('photo').files[0];
 
-        if (!name) return alert("Имя обязательно!");
+        if (!name) return alert("Введите хотя бы имя!");
 
-        if (file) {
+        const pushData = (imgBase64) => {
+            db.ref('family').push({
+                name: name,
+                role: role,
+                p1: p1,
+                p2: p2,
+                photo: imgBase64 || ''
+            });
+            document.getElementById('name').value = ''; // очистка
+        };
+
+        if (photoFile) {
+            // Если фото слишком большое, оно может не сохраниться в Realtime Database
             const reader = new FileReader();
-            reader.onload = (e) => {
-                db.ref('family').push({ name, role, p1, p2, photo: e.target.result });
-            };
-            reader.readAsDataURL(file);
+            reader.onload = (e) => pushData(e.target.result);
+            reader.readAsDataURL(photoFile);
         } else {
-            db.ref('family').push({ name, role, p1, p2, photo: '' });
+            pushData('');
         }
     }
 
     function deleteMember(id) {
-        if(confirm("Удалить родственника?")) {
-            db.ref('family/' + id).remove();
-        }
+        if(confirm("Удалить?")) db.ref('family/' + id).remove();
     }
 
     function render(family) {
@@ -87,13 +118,11 @@
         const s2 = document.getElementById('parent2');
         
         display.innerHTML = '';
-        s1.innerHTML = '<option value="">Отец</option>';
-        s2.innerHTML = '<option value="">Мать</option>';
+        const options = family.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        s1.innerHTML = '<option value="">Отец</option>' + options;
+        s2.innerHTML = '<option value="">Мать</option>' + options;
 
         family.forEach(m => {
-            s1.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-            s2.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-
             display.innerHTML += `
                 <div class="card">
                     <span class="del" onclick="deleteMember('${m.id}')">×</span>
@@ -105,6 +134,6 @@
         });
     }
 </script>
+
 </body>
 </html>
-
